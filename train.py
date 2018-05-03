@@ -1,6 +1,8 @@
 import argparse
 
+import torch.autograd
 import torch.nn
+import torch.utils
 
 import loader.utils
 import network.utils
@@ -18,6 +20,8 @@ def train(args):
     print(test_loader_)
     val_loader_ = data_loader_(data_path_, 'val', 512, 512, isTransform=True)
     print(val_loader_)
+
+    train_data_loader_ = torch.utils.data.DataLoader(train_loader_, batch_size=args.batch_size, num_workers=8, shuffle=True)
 
     num_classes_ = train_loader_.num_classes
 
@@ -39,6 +43,29 @@ def train(args):
     criterion_.cuda()
     print(criterion_)
 
+    # Training loop
+    for epoch in range(args.epochs):
+
+        network_.train()
+
+        for i, (imgs, lbls) in enumerate(train_data_loader_):
+
+            imgs_ = torch.autograd.Variable(imgs.cuda())
+            lbls_ = torch.autograd.Variable(lbls.cuda())
+
+            optimizer_.zero_grad()
+            outputs_ = network_(imgs_)
+
+            loss_ = criterion_(outputs_, lbls_)
+
+            loss_.backward()
+            optimizer_.step()
+
+            if i % 10 == 0:
+
+                print("Epoch [{0}/{1}] -- Batch [{2}] -- Loss: {3}".format(
+                        epoch, args.epochs, i, loss_.data[0]))
+
 if __name__ == '__main__':
 
     parser_ = argparse.ArgumentParser(description='Parameters')
@@ -54,5 +81,9 @@ if __name__ == '__main__':
                             help='Weight decay for the optimizer')
     parser_.add_argument('--loss', nargs='?', type=str, default='crossentropy2d',
                             help='Loss function')
+    parser_.add_argument('--epochs', nargs='?', type=int, default=10,
+                            help='Number of training epochs')
+    parser_.add_argument('--batch_size', nargs='?', type=int, default=4,
+                            help='Batch size for training')
     args_ = parser_.parse_args()
     train(args_)

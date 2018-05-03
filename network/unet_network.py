@@ -6,6 +6,7 @@ See https://github.com/zijundeng/pytorch-semantic-segmentation/blob/master/model
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class UNetNetwork(nn.Module):
 

@@ -72,9 +72,9 @@ class CityscapesLoader(torch.utils.data.Dataset):
                                     img_path_.split(os.sep)[-2],
                                     os.path.basename(img_path_)[:-15] + 'gtFine_labelIds.png')
 
-        print("Loading image {0} with labels {1}".format(
-                img_path_,
-                lbl_path_))
+        #print("Loading image {0} with labels {1}".format(
+        #        img_path_,
+        #        lbl_path_))
 
         img_ = scipy.misc.imread(img_path_)
         img_ = np.array(img_, dtype=np.uint8)
