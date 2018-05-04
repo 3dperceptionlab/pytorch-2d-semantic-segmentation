@@ -1,4 +1,5 @@
 import collections
+import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -13,6 +14,8 @@ import loader.utils
 class CityscapesLoader(torch.utils.data.Dataset):
 
     def __init__(self, root, split, imgWidth, imgHeight, imgNorm=True, isTransform=False):
+
+        self.logger = logging.getLogger(__name__)
 
         self.root = root
         self.split = split
@@ -56,7 +59,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
                                 self.split,
                                 self.images_base_path))
 
-        print("Found {0} images in split {1} on {2}".format(
+        self.logger.debug("Found {0} images in split {1} on {2}".format(
                 len(self.files),
                 self.split,
                 self.images_base_path))

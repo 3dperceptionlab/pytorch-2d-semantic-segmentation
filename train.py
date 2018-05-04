@@ -1,5 +1,8 @@
 import argparse
+import logging
+import sys
 
+import tqdm
 import torch.autograd
 import torch.nn
 import torch.utils
@@ -7,6 +10,9 @@ import torch.utils
 import loader.utils
 import network.utils
 import loss.utils
+import metrics.average_metrics
+
+log = logging.getLogger(__name__)
 
 def train(args):
 
@@ -15,21 +21,22 @@ def train(args):
     data_path_ = loader.utils.get_path(args.dataset)
 
     train_loader_ = data_loader_(data_path_, 'train', 512, 512, isTransform=True)
-    print(train_loader_)
+    log.info(train_loader_)
     test_loader_ = data_loader_(data_path_, 'test', 512, 512, isTransform=True)
-    print(test_loader_)
+    log.info(test_loader_)
     val_loader_ = data_loader_(data_path_, 'val', 512, 512, isTransform=True)
-    print(val_loader_)
+    log.info(val_loader_)
 
     train_data_loader_ = torch.utils.data.DataLoader(train_loader_, batch_size=args.batch_size, num_workers=8, shuffle=True)
+    test_data_loader_ = torch.utils.data.DataLoader(test_loader_, batch_size=args.batch_size, num_workers=8)
 
     num_classes_ = train_loader_.num_classes
 
     # Network loader
     network_ = network.utils.get_network(args.network, num_classes_)
+    log.info(network_)
     network_ = torch.nn.DataParallel(network_, device_ids=range(torch.cuda.device_count()))
     network_.cuda()
-    print(network_)
 
     # Set up optimizer
     optimizer_ = torch.optim.SGD(network_.parameters(),
@@ -41,14 +48,23 @@ def train(args):
     loss_function_ = loss.utils.get_loss(args.loss)
     criterion_ = loss_function_(sizeAverage=False, ignoreIndex=train_loader_.ignore_index)
     criterion_.cuda()
-    print(criterion_)
+    log.info(criterion_)
+
+    # Set up metrics
+    average_metrics_ = metrics.average_metrics.AverageMetrics(num_classes_)
 
     # Training loop
     for epoch in range(args.epochs):
 
+        log.info('*** Epoch {0} ***'.format(epoch))
+
         network_.train()
 
-        for i, (imgs, lbls) in enumerate(train_data_loader_):
+        log.info('Training...')
+
+        for i, (imgs, lbls) in tqdm.tqdm(enumerate(train_data_loader_), total=len(train_loader_) / args.batch_size):
+
+            N_ = imgs.size(0)
 
             imgs_ = torch.autograd.Variable(imgs.cuda())
             lbls_ = torch.autograd.Variable(lbls.cuda())
@@ -56,17 +72,57 @@ def train(args):
             optimizer_.zero_grad()
             outputs_ = network_(imgs_)
 
-            loss_ = criterion_(outputs_, lbls_)
+            loss_ = criterion_(outputs_, lbls_) / N_
 
             loss_.backward()
             optimizer_.step()
 
-            if i % 10 == 0:
+        network_.eval()
 
-                print("Epoch [{0}/{1}] -- Batch [{2}] -- Loss: {3}".format(
-                        epoch, args.epochs, i, loss_.data[0]))
+        log.info('Evaluating on training set...')
+
+        for i, (imgs, lbls) in tqdm.tqdm(enumerate(train_data_loader_), total=len(train_loader_) / args.batch_size):
+
+            imgs_ = torch.autograd.Variable(imgs_.cuda(), volatile=True)
+            lbls_ = torch.autograd.Variable(lbls_.cuda(), volatile=True)
+
+            ouputs_ = network_(imgs_)
+            preds_ = outputs_.data.max(1)[1].cpu().numpy()
+            gt_ = lbls_.data.cpu().numpy()
+
+            average_metrics_.update(preds_, gt_)
+
+        scores_ = average_metrics_.evaluate()
+
+        for score, value in scores_.items():
+            log.info(score, value)
+
+        average_metrics_.reset()
+
+        log.info('Evaluating on testing set...')
+
+        for i, (imgs, lbls) in tqdm.tqdm(enumerate(test_data_loader_), total=len(test_loader_) / args.batch_size):
+
+            imgs_ = torch.autograd.Variable(imgs_.cuda(), volatile=True)
+            lbls_ = torch.autograd.Variable(lbls_.cuda(), volatile=True)
+
+            ouputs_ = network_(imgs_)
+            preds_ = outputs_.data.max(1)[1].cpu().numpy()
+            gt_ = lbls_.data.cpu().numpy()
+
+            average_metrics_.update(preds_, gt_)
+
+        scores_ = average_metrics_.evaluate()
+
+        for score, value in scores_.items():
+            log.info(score, value)
+
+        average_metrics_.reset()
+
 
 if __name__ == '__main__':
+
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     parser_ = argparse.ArgumentParser(description='Parameters')
     parser_.add_argument('--dataset', nargs='?', type=str, default='cityscapes',
