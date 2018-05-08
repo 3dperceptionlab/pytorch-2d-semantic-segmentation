@@ -88,7 +88,9 @@ class CityscapesLoader(torch.utils.data.Dataset):
         if self.is_transform:
             img_, lbl_ = self.transform(img_, lbl_)
 
-        return img_, lbl_
+        lbl_rgb_ = torch.from_numpy(self.decode_labels(lbl_.numpy())).float()
+
+        return img_, lbl_, lbl_rgb_
     
     def __repr__(self):
 
@@ -143,6 +145,26 @@ class CityscapesLoader(torch.utils.data.Dataset):
         rgb_[:,:,2] = b_ / 255.0
         
         return rgb_
+
+    def decode_labels_batch(self, labels):
+
+        r_ = labels.copy()
+        g_ = labels.copy()
+        b_ = labels.copy()
+
+        for l in range(0, self.num_classes):
+
+            r_[labels == l] = self.label_colors[l][0]
+            g_[labels == l] = self.label_colors[l][1]
+            b_[labels == l] = self.label_colors[l][2]
+
+        rgb_ = np.zeros((labels.shape[0], labels.shape[1], labels.shape[2],  3))
+
+        rgb_[:,:,:,0] = r_ / 255.0
+        rgb_[:,:,:,1] = g_ / 255.0
+        rgb_[:,:,:,2] = b_ / 255.0
+
+        return torch.from_numpy(rgb_).float()
 
 if __name__ == '__main__':
 

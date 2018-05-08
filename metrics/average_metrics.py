@@ -38,9 +38,9 @@ class AverageMetrics(object):
 
         iou_cls_ = dict(zip(range(self.num_classes), iou_))
 
-        return {'acc: \t' : acc_cls_,
-                'fwacc: \t' : fwacc_,
-                'iou: \t' : mean_iou_}
+        return {'acc' : acc_cls_,
+                'fwacc' : fwacc_,
+                'iou' : mean_iou_}
 
     def reset(self):
 
