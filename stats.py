@@ -24,6 +24,7 @@ def stats(args):
 
     num_classes_ = data_loader_.num_classes
     class_map_ = data_loader_.class_map
+    class_colors_ = data_loader_.colors
     classes_ = data_loader_.valid_classes
     class_names_ = data_loader_.class_names
     num_images_ = len(data_loader_)
@@ -46,7 +47,7 @@ def stats(args):
     print(class_map_)
 
     for k, v in class_map_.items():
-        log.info('Class {0} with name {1} : {2}'.format(k, class_names_[v], v))
+        log.info('Class {0} with name {1} : {2} and color {3}'.format(k, class_names_[v], v, class_colors_[v]))
 
     for i, (img, lbl, lbl_rgb) in tqdm.tqdm(enumerate(torch_data_loader_), total=len(data_loader_)):
 
@@ -94,6 +95,8 @@ def stats(args):
 
     fig_, ax_ = plt.subplots()
     barlist_ = ax_.barh(x_values_, y_values_)
+    for c in range(num_classes_):
+        barlist_[c].set_color(tuple(np.array(class_colors_[c]) / 255.0))
     ax_.set_yticks(x_values_)
     ax_.set_yticklabels(x_labels_)
     ax_.invert_yaxis()
@@ -110,6 +113,8 @@ def stats(args):
 
     fig_, ax_ = plt.subplots()
     barlist_ = ax_.barh(x_values_, y_values_)
+    for c in range(num_classes_):
+        barlist_[c].set_color(tuple(np.array(class_colors_[c]) / 255.0))
     ax_.set_yticks(x_values_)
     ax_.set_yticklabels(x_labels_)
     ax_.invert_yaxis()
