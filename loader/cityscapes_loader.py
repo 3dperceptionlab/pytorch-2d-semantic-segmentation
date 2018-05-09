@@ -2,7 +2,6 @@ import collections
 import logging
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.misc
 import torch
@@ -26,7 +25,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
         self.num_classes = 19
         self.void_classes = [0, 1, 2, 3, 4, 6, 7, 9, 10, 14, 15, 16, 18, 29, 30, -1]
         self.valid_classes = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
-        self.class_names = ['unlabelled', 'road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic_light', 'traffic_sign', 'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
+        self.class_names = ['road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic_light', 'traffic_sign', 'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle', 'unlabelled']
         self.ignore_index = 250
         self.class_map = dict(zip(self.valid_classes, range(19)))
         self.colors = [[128, 64, 128],
@@ -152,7 +151,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
         g_ = labels.copy()
         b_ = labels.copy()
 
-        for l in range(0, self.num_classes):
+        for l in range(self.num_classes):
 
             r_[labels == l] = self.label_colors[l][0]
             g_[labels == l] = self.label_colors[l][1]
@@ -165,26 +164,3 @@ class CityscapesLoader(torch.utils.data.Dataset):
         rgb_[:,:,:,2] = b_ / 255.0
 
         return torch.from_numpy(rgb_).float()
-
-if __name__ == '__main__':
-
-    batch_ = 0
-    batch_size_ = 4
-
-    path_ = '../datasets/cityscapes/'
-    dataset_loader_ = CityscapesLoader(path_, 'train', 512, 512, isTransform=True)
-    train_loader_ = torch.utils.data.DataLoader(dataset_loader_, batch_size=batch_size_)
-
-    for i, data in enumerate(train_loader_):
-
-        imgs_, lbls_ = data
-
-        imgs_ = imgs_.numpy()[:,::-1,:,:]
-        imgs_ = np.transpose(imgs_, [0, 2, 3, 1])
-        f_, ax_ = plt.subplots(batch_size_, 2)
-
-        for j in range(batch_size_):
-            ax_[j][0].imshow(imgs_[j])
-            ax_[j][1].imshow(dataset_loader_.decode_labels(lbls_.numpy()[j]))
-
-        plt.show()
