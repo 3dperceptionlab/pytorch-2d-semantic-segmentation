@@ -4,6 +4,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import tqdm
 import torch
 import torch.utils
@@ -33,12 +34,7 @@ def stats(args):
     class_image_percentage_ = np.zeros(num_classes_)
     class_pixel_count_ = np.zeros(num_classes_)
     class_pixel_percentage_ = np.zeros(num_classes_)
-
-    for c in range(num_classes_):
-        class_image_count_[c] = 0
-        class_image_percentage_[c] = 0
-        class_pixel_count_[c] = 0
-        class_pixel_percentage_[c] = 0
+    class_heatmap_ = np.zeros((num_classes_, args.img_width, args.img_height))
 
     log.info('Number of images: {0}'.format(num_images_))
     log.info('Number of classes: {0}'.format(num_classes_))
@@ -62,16 +58,19 @@ def stats(args):
 
             class_pixel_count_[c] += pixel_count_[c]
 
+            class_heatmap_[c][labels_ == c] += 1.0
+
         log.debug(class_pixel_count_)
         log.debug(class_image_count_)
 
-        if i > 10:
-            break
-
     for c in range(num_classes_):
 
-        class_image_percentage_[c] = class_image_count_[c] * 100.0 / np.sum(class_image_count_)
+        class_image_percentage_[c] = class_image_count_[c] * 100.0 / num_images_
         class_pixel_percentage_[c] = class_pixel_count_[c] * 100.0 / np.sum(class_pixel_count_)
+
+        # Normalize heatmap
+        class_heatmap_[c] /= np.max(class_heatmap_[c])
+
 
     log.debug('Sum of percentages of images: {0}'.format(np.sum(class_image_percentage_)))
     log.debug('Sum of percentages of pixels: {0}'.format(np.sum(class_pixel_percentage_)))
@@ -103,13 +102,13 @@ def stats(args):
     ax_.set_xlim(0, 100)
     ax_.set_xlabel(y_label_)
     ax_.set_title('Per-class Image Percentage')
-    plt.show()
+    fig_.savefig('plots/class_dist.png')
 
     # Plot per-class pixel percentage
     x_labels_ = class_names_
     x_values_ = np.arange(len(x_labels_)-1)
     y_values_ = class_pixel_percentage_
-    y_label_ = 'Percentage of Images (%)'
+    y_label_ = 'Percentage of Pixels (%)'
 
     fig_, ax_ = plt.subplots()
     barlist_ = ax_.barh(x_values_, y_values_)
@@ -121,7 +120,14 @@ def stats(args):
     ax_.set_xlim(0, 100)
     ax_.set_xlabel(y_label_)
     ax_.set_title('Per-class Pixel Percentage')
-    plt.show()
+    fig_.savefig('plots/pixel_dist.png')
+
+    # Plot heatmaps
+    for c in range(num_classes_):
+        fig_, ax_ = plt.subplots()
+        sns.heatmap(class_heatmap_[c], ax=ax_, vmin=0.0, vmax=1.0)
+        ax_.set_title('{0} heatmap'.format(class_names_[c]))
+        fig_.savefig('plots/heatmap_{0}.png'.format(c))
 
 
 if __name__ == '__main__':
