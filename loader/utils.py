@@ -1,13 +1,10 @@
 import os
 
-import loader.ade20k_loader
 import loader.cityscapes_loader
 
-loaders_ = { 'ade20k' : loader.ade20k_loader.ADE20KLoader,
-             'cityscapes': loader.cityscapes_loader.CityscapesLoader }
+loaders_ = { 'cityscapes': loader.cityscapes_loader.CityscapesLoader }
 
-paths_ = { 'ade20k' : 'datasets/ade20k',
-            'cityscapes' : 'datasets/cityscapes' }
+paths_ = { 'cityscapes' : '/src/datasets_asimov/cityscapes' }
 
 def get_loader(name):
     return loaders_[name]

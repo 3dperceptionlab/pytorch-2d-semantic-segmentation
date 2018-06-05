@@ -12,12 +12,13 @@ import loader.utils
 
 class CityscapesLoader(torch.utils.data.Dataset):
 
-    def __init__(self, root, split, imgWidth, imgHeight, imgNorm=True, isTransform=False):
+    def __init__(self, args, root, split, imgWidth, imgHeight, imgNorm=True, isTransform=False):
 
         self.logger = logging.getLogger(__name__)
 
         self.root = root
         self.split = split
+        self.network= args.network.split("_")[0]
         self.img_size = (imgWidth, imgHeight)
         self.img_norm = imgNorm
         self.is_transform = isTransform
@@ -68,6 +69,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
         return len(self.files)
 
     def __getitem__(self, index):
+        output= []
 
         img_path_ = self.files[index].rstrip()
         lbl_path_ = os.path.join(self.labels_base_path,
@@ -83,13 +85,25 @@ class CityscapesLoader(torch.utils.data.Dataset):
 
         lbl_ = scipy.misc.imread(lbl_path_)
         lbl_ = self.encode_labels(np.array(lbl_, dtype=np.uint8))
+        ind_= np.unique(lbl_)[:-1]
 
         if self.is_transform:
             img_, lbl_ = self.transform(img_, lbl_)
 
-        lbl_rgb_ = torch.from_numpy(self.decode_labels(lbl_.numpy())).float()
+        
+        if self.network == 'unet':
+            lbl_rgb_ = torch.from_numpy(self.decode_labels(lbl_.numpy()))
+            output = [img_.float(), lbl_.long(), lbl_rgb_.float()]
 
-        return img_, lbl_, lbl_rgb_
+        if self.network == 'pspnet':
+            cls_= np.zeros(self.num_classes)
+            cls_[ind_] = 1
+            cls_= torch.from_numpy(cls_)
+
+            output= [img_.float(), lbl_.long(), cls_.float()]
+
+
+        return output
     
     def __repr__(self):
 
@@ -110,8 +124,8 @@ class CityscapesLoader(torch.utils.data.Dataset):
         lbl_ = lbl.astype(float)
         lbl_ = scipy.misc.imresize(lbl_, self.img_size, 'nearest', mode='F')
 
-        img_ = torch.from_numpy(img_).float()
-        lbl_ = torch.from_numpy(lbl_).long()
+        img_ = torch.from_numpy(img_)
+        lbl_ = torch.from_numpy(lbl_)
 
         return img_, lbl_
 
@@ -163,4 +177,4 @@ class CityscapesLoader(torch.utils.data.Dataset):
         rgb_[:,:,:,1] = g_ / 255.0
         rgb_[:,:,:,2] = b_ / 255.0
 
-        return torch.from_numpy(rgb_).float()
+        return torch.from_numpy(rgb_)
