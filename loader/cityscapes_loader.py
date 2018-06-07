@@ -12,14 +12,14 @@ import loader.utils
 
 class CityscapesLoader(torch.utils.data.Dataset):
 
-    def __init__(self, args, dataset_params, root, split, imgWidth, imgHeight, imgNorm=True, isTransform=False):
+    def __init__(self, config, root, split, imgWidth, imgHeight, imgNorm=True, isTransform=False):
 
         self.logger = logging.getLogger(__name__)
 
         self.root = root
         self.split = split
-        self.network= args.network.split("_")[0]
-        self.dataset_params= dataset_params
+        self.dataset_params= config["DATASET"]
+        self.network_params= config["NETWORK"]
         self.img_size = (imgWidth, imgHeight)
         self.img_norm = imgNorm
         self.is_transform = isTransform
@@ -68,11 +68,11 @@ class CityscapesLoader(torch.utils.data.Dataset):
             img_, lbl_ = self.transform(img_, lbl_)
 
         
-        if self.network == 'unet':
+        if self.network_params["NAME"] == 'unet':
             lbl_rgb_ = torch.from_numpy(self.decode_labels(lbl_.numpy()))
             output = [img_.float(), lbl_.long(), lbl_rgb_.float()]
 
-        if self.network == 'pspnet':
+        if self.network_params["NAME"] == 'pspnet':
             cls_= np.zeros(self.dataset_params['NUM_CLASSES'])
             cls_[ind_] = 1
             cls_= torch.from_numpy(cls_)

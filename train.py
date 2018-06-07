@@ -62,7 +62,7 @@ def evaluate(args, network, loader, numImages, batchSize, numClasses):
 
 			outputs_ = network(x_)
 
-			if args.network.split("_")[0] == 'pspnet':
+			if args.network == 'pspnet':
 				preds_ = outputs_[0].data.max(1)[1].cpu().numpy()
 
 			else:
@@ -81,7 +81,7 @@ def evaluate(args, network, loader, numImages, batchSize, numClasses):
 		average_metrics_.reset()
 
 
-def train(args, dataset_params):
+def train(args, config):
 
 	experiment_str_ = '{0}-{1}-{2}'.format(
 						args.network,
@@ -94,16 +94,16 @@ def train(args, dataset_params):
 	data_loader_ = loader.utils.get_loader(args.dataset)
 	data_path_ = loader.utils.get_path(args.dataset)
 
-	train_loader_ = data_loader_(args, dataset_params, data_path_, 'train', args.img_width, args.img_height, isTransform=True)
+	train_loader_ = data_loader_(config, data_path_, 'train', args.img_width, args.img_height, isTransform=True)
 	log.info(train_loader_)
-	test_loader_ = data_loader_(args, dataset_params, data_path_, 'val', args.img_width, args.img_height, isTransform=True)
+	test_loader_ = data_loader_(config, data_path_, 'val', args.img_width, args.img_height, isTransform=True)
 	log.info(test_loader_)
 
 	train_data_loader_ = torch.utils.data.DataLoader(train_loader_, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 	test_data_loader_ = torch.utils.data.DataLoader(test_loader_, batch_size=args.batch_size, num_workers=args.num_workers)
 
 	# Network loader
-	network_ = network.utils.get_network(args.network, dataset_params['NUM_CLASSES'])
+	network_ = network.utils.get_network(config)
 	log.info(network_)
 	network_ = torch.nn.DataParallel(network_, device_ids=range(torch.cuda.device_count()))
 	network_.cuda()
@@ -114,7 +114,7 @@ def train(args, dataset_params):
 		optimizer_= torch.optim.Adam(network_.parameters(), lr= args.learning_rate)
 		scheduler = MultiStepLR(optimizer_, milestones=args.milestones)
 		seg_criterion = loss.utils.get_loss("crossentropy")
-		seg_criterion = seg_criterion(ignore_index= dataset_params['IGNORE_INDEX']).cuda()
+		seg_criterion = seg_criterion(ignore_index= config['DATASET']['IGNORE_INDEX']).cuda()
 		log.info(seg_criterion)
 		cls_criterion = torch.nn.BCEWithLogitsLoss().cuda()
 		log.info(cls_criterion) 
@@ -128,7 +128,7 @@ def train(args, dataset_params):
 									weight_decay=5e-4)
 
 		loss_function_ = loss.utils.get_loss(args.loss)
-		criterion_ = loss_function_(sizeAverage=False, ignoreIndex= dataset_params['IGNORE_INDEX'])
+		criterion_ = loss_function_(sizeAverage=False, ignoreIndex= config['DATASET']['IGNORE_INDEX'])
 		criterion_.cuda()
 		log.info(criterion_)
 
@@ -175,7 +175,7 @@ def train(args, dataset_params):
 
 			optimizer_.zero_grad()
 
-			if args.network.split("_")[0] == 'pspnet':
+			if args.network == 'pspnet':
 				y_cls_ = batch[2]
 				y_cls_ = torch.autograd.Variable(y_cls_.cuda())
 				outputs_ = network_(x_)
@@ -206,7 +206,7 @@ def train(args, dataset_params):
 
 				outputs_lbls_ = train_loader_.decode_labels_batch(outputs_.data.max(1)[1].cpu().numpy())
 
-			if args.network.split("_")[0] == 'pspnet':
+			if args.network == 'pspnet':
 				outputs_lbls_ = train_loader_.decode_labels_batch(outputs_[0].data.max(1)[1].cpu().numpy())
 
 			outputs_lbls_ = outputs_lbls_.permute(0, 3, 1, 2)
@@ -270,9 +270,13 @@ if __name__ == '__main__':
 	args_ = parser_.parse_args()
 
 
-	#Read datasets JSON config file
-	with open('loader/config.json') as f:
-		dataset_params = json.load(f)['DATASETS'][args_.dataset.upper()]
-		
+	#Read JSON file with all dataset and network parameters
+	config_ = {}
+	with open('config.json') as f:
+		config_file = json.load(f)
+		config_["DATASET"] = config_file['DATASETS'][args_.dataset.upper()]
+		config_["NETWORK"] = config_file['NETWORKS'][args_.network.upper()]
 
-	train(args_, dataset_params= dataset_params)
+
+		
+	train(args_, config= config_)
